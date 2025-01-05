@@ -2,10 +2,13 @@ const express = require("express");
 const mysql = require("mysql2/promise");
 const dotenv = require("dotenv");
 const { v4: uuidv4 } = require("uuid");
+const jwt = require("jsonwebtoken");
 
 dotenv.config();
 
 const app = express();
+
+app.use(express.json());
 
 const dbConfig = {
   host: "localhost",
@@ -210,7 +213,7 @@ app.post("/generate", async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?)
       `;
     for (const row of data) {
-      const rowWithId = [uuidv4(), ...row]; // Prepend UUID to the row
+      const rowWithId = [uuidv4(), ...row];
       await connection.execute(insertQuery, rowWithId);
     }
 
@@ -222,6 +225,74 @@ app.post("/generate", async (req, res) => {
     res.status(500).json({ error: "Failed to generate data." });
   } finally {
     await connection.end();
+  }
+});
+
+app.get("/admin", async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ error: "No token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, "secret");
+    const userId = decoded.id;
+
+    const connection = await mysql.createConnection(dbConfig);
+
+    const query = `
+      SELECT id, username, password 
+      FROM admin
+      WHERE id = ?
+    `;
+
+    const [results] = await connection.execute(query, [userId]);
+    if (results.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({ message: "Admin authenticated successfully" });
+  } catch (err) {
+    console.error("Error verifying token or querying database:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res
+      .status(400)
+      .json({ error: "Username and password are required" });
+  }
+
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+
+    const query = `
+      SELECT id, username, password 
+      FROM admin
+      WHERE username = ?
+    `;
+
+    const [results] = await connection.execute(query, [username]);
+    if (results.length === 0) {
+      return res.status(401).json({ error: "Invalid username or password" });
+    }
+
+    const user = results[0];
+
+    if (user.password !== password) {
+      return res.status(401).json({ error: "Invalid username or password" });
+    }
+
+    const token = jwt.sign({ id: user.id }, "secret", { expiresIn: "1h" });
+
+    res.json({ token });
+  } catch (err) {
+    console.error("Error querying database:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
