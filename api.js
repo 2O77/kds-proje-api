@@ -111,11 +111,11 @@ function generateData() {
   for (let year = 2015; year <= 2025; year++) {
     for (const city of cities) {
       const isKeyCity = keyCities.includes(city);
-      const hospitalCount = isKeyCity ? Math.floor(Math.random() * 6) : 0;
+      const hospitalCount = isKeyCity ? Math.floor(Math.random() * 1) : 0;
 
-      // If it's not a key city, generate patientCount and capacity between 0 and 3000
-      const patientCount = Math.floor(Math.random() * 3001); // Random value from 0 to 3000
-      const capacity = Math.floor(Math.random() * 3001); // Random value from 0 to 3000
+      // If it's not a key city, generate patientCount and capacity between 500 and 3000
+      const patientCount = Math.floor(Math.random() * 2501) + 500; // Random value from 500 to 3000
+      const capacity = Math.floor(Math.random() * 2501) + 500; // Random value from 500 to 3000
 
       // If it is a key city, make sure hospitalCount, patientCount, and capacity are within reason
       if (hospitalCount > 0) {
